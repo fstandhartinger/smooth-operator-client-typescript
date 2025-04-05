@@ -1,6 +1,6 @@
 {
   "name": "smooth-operator-agent-tools",
-  "version": "1.0.91",
+  "version": "1.0.95",
   "description": "Node.js client library for Smooth Operator Agent Tools - a toolkit for programmers developing Computer Use Agents on Windows systems",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
