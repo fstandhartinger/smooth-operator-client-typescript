@@ -1,0 +1,59 @@
+{
+  "name": "smooth-operator-agent-tools",
+  "version": "1.0.91",
+  "description": "Node.js client library for Smooth Operator Agent Tools - a toolkit for programmers developing Computer Use Agents on Windows systems",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "prepare": "npm run clean && npm run build",
+    "postinstall": "node dist/scripts/postinstall.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "smooth-operator",
+    "automation",
+    "windows",
+    "chrome",
+    "ui-automation",
+    "agent-tools",
+    "mcp-server"
+  ],
+  "author": "Smooth Operator",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fstandhartinger/smooth-operator-client-typescript.git"
+  },
+  "files": [
+    "dist",
+    "resources",
+    "smooth-operator-server.zip",
+    "installedversion.txt",
+    "LICENSE",
+    "README.md"
+  ],
+  "dependencies": {
+    "adm-zip": "^0.5.10"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^18.15.11",
+    "jest": "^29.5.0",
+    "rimraf": "^5.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ]
+  }
+}
