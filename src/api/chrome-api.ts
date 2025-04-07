@@ -1,4 +1,4 @@
-import { ActionResponse, ChromeScriptResponse, ChromeTabDetails, SimpleResponse } from '../models/models';
+import { ActionResponse, ChromeScriptResponse, ChromeTabDetails, ExistingChromeInstanceStrategy, SimpleResponse } from '../models/models'; // Added ExistingChromeInstanceStrategy
 import { SmoothOperatorClient } from '../smooth-operator-client';
 
 /**
@@ -16,12 +16,14 @@ export class ChromeApi {
   }
 
   /**
-   * Opens Chrome browser (Playwright-managed instance)
-   * @param url Optional URL to navigate to immediately
-   * @param strategy Optional strategy for opening Chrome
-   * @returns SimpleResponse indicating success or failure
+   * Opens Chrome browser (Playwright-managed instance).
+   * @param url Optional URL to navigate to immediately.
+   * @param strategy Strategy for handling existing Chrome instances. Defaults to ThrowError (0).
+   *                 Possible values: ThrowError (0), ForceClose (1), StartWithoutUserProfile (2).
+   * @returns SimpleResponse indicating success or failure.
    */
-  public async openChrome(url?: string, strategy?: string): Promise<SimpleResponse> {
+  public async openChrome(url?: string, strategy: ExistingChromeInstanceStrategy = ExistingChromeInstanceStrategy.ThrowError): Promise<SimpleResponse> {
+    // Send the numeric value of the enum
     return this.client.post<SimpleResponse>('/tools-api/system/open-chrome', { url, strategy });
   }
 

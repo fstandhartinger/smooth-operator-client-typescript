@@ -16,6 +16,20 @@ export enum MechanismType {
   Qwen25Vl72b = "qwen25-vl-72b"
 }
 
+/**
+ * Strategy to use when an existing Chrome instance is already running with the same user profile.
+ * Mirrors the C# enum.
+ */
+export enum ExistingChromeInstanceStrategy {
+  /** Throw an error if an existing Chrome instance is using the same user profile. */
+  ThrowError = 0,
+  /** Force close any existing Chrome instances before starting a new one. */
+  ForceClose = 1,
+  /** Start a Playwright-managed Chrome without using the user profile. */
+  StartWithoutUserProfile = 2
+}
+
+
 // Define a type for the plain object returned by ControlDTO.toJSON
 type ControlDTOPlain = {
   id: string;
@@ -105,24 +119,24 @@ export class ActionResponse {
   success: boolean;
   /** Message describing the result */
   message: string | null; // Match C# non-optional string (can be null)
-  /** Additional data (if applicable) */
-  data: Record<string, any> | null; // Match C# non-optional Dictionary (can be null)
+  /** Additional result data (if applicable), typically a string for simple results, can be a json string for more complex results */
+  resultValue: string | null; // Added property
 
   constructor(data: {
     success: boolean;
     message?: string | null;
-    data?: Record<string, any> | null;
+    resultValue?: string | null; // Added to constructor
   }) {
     this.success = data.success;
     this.message = data.message ?? null;
-    this.data = data.data ?? null;
+    this.resultValue = data.resultValue ?? null; // Initialize new property
   }
 
   toJSON(): any {
     return {
       success: this.success,
       message: this.message,
-      data: this.data,
+      resultValue: this.resultValue, // Added to JSON output
     };
   }
 }
@@ -141,12 +155,11 @@ export class ScreenGrasp2Response extends ActionResponse {
   constructor(data: {
     success: boolean;
     message?: string | null;
-    data?: Record<string, any> | null;
     x?: number | null;
     y?: number | null;
     status?: string | null;
   }) {
-    super({ success: data.success, message: data.message, data: data.data });
+    super({ success: data.success, message: data.message });
     this.x = data.x ?? null;
     this.y = data.y ?? null;
     this.status = data.status ?? null;
@@ -248,10 +261,9 @@ export class ChromeScriptResponse extends ActionResponse {
   constructor(data: {
     success: boolean;
     message?: string | null;
-    data?: Record<string, any> | null;
     result?: string | null;
   }) {
-    super({ success: data.success, message: data.message, data: data.data });
+    super({ success: data.success, message: data.message });
     this.result = data.result ?? null;
   }
 
@@ -276,7 +288,7 @@ export class CSharpCodeResponse extends ActionResponse {
     data?: Record<string, any> | null;
     result?: string | null;
   }) {
-    super({ success: data.success, message: data.message, data: data.data });
+    super({ success: data.success, message: data.message });
     this.result = data.result ?? null;
   }
 
@@ -505,17 +517,17 @@ export class WindowInfoDTO {
   /** Window ID */
   id: string;
   /** Window title */
-  title: string | null; // Match C# non-optional string (can be null)
+  title: string | null;
   /** Path to the executable */
-  executablePath: string | null; // Match C# non-optional string (can be null)
+  executablePath: string | null;
   /** Whether the window is in the foreground */
-  isForeground: boolean | null; // Match C# bool?
+  isForeground: boolean | null;
   /** Process name */
-  processName: string | null; // Match C# non-optional string (can be null)
+  processName: string | null;
   /** Whether the window is minimized */
-  isMinimized: boolean | null; // Match C# bool?
-  /** Detailed information about the window */
-  detailInfos: WindowDetailResponse | null; // Match C# non-optional WindowDetailResponse (can be null)
+  isMinimized: boolean | null;
+  /** Detailed information (if requested) */
+  detailInfos: WindowDetailResponse | null;
 
   constructor(data: {
     id: string;
@@ -524,7 +536,7 @@ export class WindowInfoDTO {
     isForeground?: boolean | null;
     processName?: string | null;
     isMinimized?: boolean | null;
-    detailInfos?: any | null; // Accept plain object during construction
+    detailInfos?: WindowDetailResponse | null;
   }) {
     this.id = data.id;
     this.title = data.title ?? null;
@@ -532,7 +544,7 @@ export class WindowInfoDTO {
     this.isForeground = data.isForeground ?? null;
     this.processName = data.processName ?? null;
     this.isMinimized = data.isMinimized ?? null;
-    // Reconstruct nested object if data is provided
+    // Reconstruct detailInfos if present
     this.detailInfos = data.detailInfos ? new WindowDetailResponse(data.detailInfos) : null;
   }
 
@@ -544,33 +556,33 @@ export class WindowInfoDTO {
       isForeground: this.isForeground,
       processName: this.processName,
       isMinimized: this.isMinimized,
-      // Ensure nested objects also use toJSON if available
+      // Serialize detailInfos if it exists
       detailInfos: this.detailInfos?.toJSON ? this.detailInfos.toJSON() : this.detailInfos,
     };
   }
 }
 
 /**
- * Response containing window details
+ * Wrapper for WindowDetailInfosDTO, potentially from older API versions
  */
 export class WindowDetailResponse {
-  /** Detailed information about the window */
+  /** Detailed information */
   details: WindowDetailInfosDTO | null; // Match C# non-optional WindowDetailInfosDTO (can be null)
   /** Message describing the result */
   message: string | null; // Match C# non-optional string (can be null)
 
   constructor(data: {
-    details?: any | null; // Accept plain object during construction
+    details?: WindowDetailInfosDTO | null;
     message?: string | null;
   }) {
-    // Reconstruct nested object if data is provided
+    // Reconstruct details if present
     this.details = data.details ? new WindowDetailInfosDTO(data.details) : null;
     this.message = data.message ?? null;
   }
 
   toJSON(): any {
     return {
-      // Ensure nested objects also use toJSON if available
+      // Serialize details if it exists
       details: this.details?.toJSON ? this.details.toJSON() : this.details,
       message: this.message,
     };
@@ -578,31 +590,31 @@ export class WindowDetailResponse {
 }
 
 /**
- * Detailed information about a window
+ * Detailed UI automation information for a window
  */
 export class WindowDetailInfosDTO {
-  /** Note about the window */
+  /** Note about the details */
   note: string | null; // Match C# non-optional string (can be null)
-  /** Window information */
-  window: WindowInfoDTO; // Match C# non-optional WindowInfoDTO
-  /** User interface elements in the window */
-  userInterfaceElements: ControlDTO; // Match C# non-optional ControlDTO
+  /** Information about the window */
+  window: WindowInfoDTO | null; // Match C# non-optional WindowInfoDTO (can be null)
+  /** Root UI element */
+  userInterfaceElements: ControlDTO | null; // Match C# non-optional ControlDTO (can be null)
 
   constructor(data: {
-    window: any; // Accept plain object during construction
-    userInterfaceElements: any; // Accept plain object during construction
     note?: string | null;
+    window?: WindowInfoDTO | null;
+    userInterfaceElements?: ControlDTO | null;
   }) {
     this.note = data.note ?? null;
-    // Reconstruct nested objects
-    this.window = new WindowInfoDTO(data.window);
-    this.userInterfaceElements = new ControlDTO(data.userInterfaceElements);
+    // Reconstruct window and userInterfaceElements if present
+    this.window = data.window ? new WindowInfoDTO(data.window) : null;
+    this.userInterfaceElements = data.userInterfaceElements ? new ControlDTO(data.userInterfaceElements) : null;
   }
 
   toJSON(): any {
     return {
       note: this.note,
-      // Ensure nested objects also use toJSON if available
+      // Serialize window and userInterfaceElements if they exist
       window: this.window?.toJSON ? this.window.toJSON() : this.window,
       userInterfaceElements: this.userInterfaceElements?.toJSON ? this.userInterfaceElements.toJSON() : this.userInterfaceElements,
     };
@@ -610,68 +622,68 @@ export class WindowDetailInfosDTO {
 }
 
 /**
- * Information about a Chrome instance
+ * Overview information about a single Chrome instance
  */
 export class ChromeOverview {
   /** Instance ID */
   instanceId: string;
-  /** Tabs in the Chrome instance */
-  tabs: TabData[]; // Match C# non-optional List -> Made non-nullable
-  /** Last update timestamp (ISO 8601 format) */
+  /** List of tabs */
+  tabs: TabData[];
+  /** Last update time (ISO 8601 format) */
   lastUpdate: string;
 
   constructor(data: {
     instanceId: string;
-    tabs?: any[] | null; // Accept plain objects during construction, allow null/undefined
+    tabs: TabData[];
     lastUpdate: string;
   }) {
     this.instanceId = data.instanceId;
-    // Reconstruct nested objects, default to empty array if null/undefined
-    this.tabs = data.tabs ? data.tabs.map(tData => new TabData(tData)) : [];
+    // Reconstruct tabs as TabData instances
+    this.tabs = data.tabs.map(tData => new TabData(tData));
     this.lastUpdate = data.lastUpdate;
   }
 
   toJSON(): any {
     return {
       instanceId: this.instanceId,
-      // Ensure nested objects also use toJSON if available
-      tabs: this.tabs?.map(tab => tab?.toJSON ? tab.toJSON() : tab) ?? null,
+      // Serialize tabs
+      tabs: this.tabs.map(tab => tab.toJSON()),
       lastUpdate: this.lastUpdate,
     };
   }
 }
 
 /**
- * Information about a Chrome tab
+ * Data for a single tab within a Chrome instance
  */
 export class TabData {
   /** Tab ID */
   id: string;
   /** Tab URL */
-  url: string | null; // Match C# non-optional string (can be null)
+  url: string;
   /** Whether the tab is active */
-  isActive: boolean | null; // Match C# bool?
-  /** HTML content of the tab */
+  isActive: boolean;
+  /** HTML content (if requested) */
   html: string | null; // Match C# non-optional string (can be null)
-  /** Text content of the tab */
+  /** Text content (if requested) */
   text: string | null; // Match C# non-optional string (can be null)
-  /** ID string */
+  /** ID string (seems redundant?) */
   idString: string | null; // Match C# non-optional string (can be null)
   /** Tab number */
-  tabNr: number; // Match C# int
+  tabNr: number; // Match C# non-optional int
 
   constructor(data: {
     id: string;
+    url: string;
+    isActive: boolean;
     tabNr: number;
-    url?: string | null;
-    isActive?: boolean | null;
     html?: string | null;
     text?: string | null;
     idString?: string | null;
   }) {
     this.id = data.id;
-    this.url = data.url ?? null;
-    this.isActive = data.isActive ?? null;
+    this.url = data.url;
+    this.isActive = data.isActive;
     this.html = data.html ?? null;
     this.text = data.text ?? null;
     this.idString = data.idString ?? null;
@@ -692,38 +704,38 @@ export class TabData {
 }
 
 /**
- * Information about the focused element
+ * Information about the currently focused element
  */
 export class FocusInformation {
-  /** Focused element */
+  /** Focused UI element */
   focusedElement: ControlDTO | null; // Match C# non-optional ControlDTO (can be null)
   /** Parent window of the focused element */
   focusedElementParentWindow: WindowInfoDTO | null; // Match C# non-optional WindowInfoDTO (can be null)
-  /** Other elements in the same window that might be relevant */
+  /** Other relevant elements in the same window */
   someOtherElementsInSameWindowThatMightBeRelevant: ControlDTO[] | null; // Match C# non-optional List (can be null)
-  /** Most relevant elements in the current Chrome tab */
+  /** Relevant elements in the current Chrome tab */
   currentChromeTabMostRelevantElements: ChromeElementInfo[] | null; // Match C# non-optional List (can be null)
-  /** Whether the focused window is Chrome */
+  /** Whether the focus is within Chrome */
   isChrome: boolean; // Match C# non-optional bool
   /** Note about the focus */
   note: string | null; // Match C# non-optional string (can be null)
 
   constructor(data: {
     isChrome: boolean;
-    focusedElement?: any | null; // Accept plain object
-    focusedElementParentWindow?: any | null; // Accept plain object
-    someOtherElementsInSameWindowThatMightBeRelevant?: any[] | null; // Accept plain objects
-    currentChromeTabMostRelevantElements?: any[] | null; // Accept plain objects
+    focusedElement?: ControlDTO | null;
+    focusedElementParentWindow?: WindowInfoDTO | null;
+    someOtherElementsInSameWindowThatMightBeRelevant?: ControlDTO[] | null;
+    currentChromeTabMostRelevantElements?: ChromeElementInfo[] | null;
     note?: string | null;
   }) {
-    // Reconstruct nested objects
+    // Reconstruct complex types
     this.focusedElement = data.focusedElement ? new ControlDTO(data.focusedElement) : null;
     this.focusedElementParentWindow = data.focusedElementParentWindow ? new WindowInfoDTO(data.focusedElementParentWindow) : null;
     this.someOtherElementsInSameWindowThatMightBeRelevant = data.someOtherElementsInSameWindowThatMightBeRelevant
-      ? data.someOtherElementsInSameWindowThatMightBeRelevant.map(elData => new ControlDTO(elData))
+      ? data.someOtherElementsInSameWindowThatMightBeRelevant.map(cData => new ControlDTO(cData))
       : null;
     this.currentChromeTabMostRelevantElements = data.currentChromeTabMostRelevantElements
-      ? data.currentChromeTabMostRelevantElements.map(elData => new ChromeElementInfo(elData))
+      ? data.currentChromeTabMostRelevantElements.map(eData => new ChromeElementInfo(eData))
       : null;
     this.isChrome = data.isChrome;
     this.note = data.note ?? null;
@@ -731,11 +743,11 @@ export class FocusInformation {
 
   toJSON(): any {
     return {
-      // Ensure nested objects also use toJSON if available
+      // Serialize complex types if they exist
       focusedElement: this.focusedElement?.toJSON ? this.focusedElement.toJSON() : this.focusedElement,
       focusedElementParentWindow: this.focusedElementParentWindow?.toJSON ? this.focusedElementParentWindow.toJSON() : this.focusedElementParentWindow,
-      someOtherElementsInSameWindowThatMightBeRelevant: this.someOtherElementsInSameWindowThatMightBeRelevant?.map(el => el?.toJSON ? el.toJSON() : el) ?? null,
-      currentChromeTabMostRelevantElements: this.currentChromeTabMostRelevantElements?.map(el => el?.toJSON ? el.toJSON() : el) ?? null,
+      someOtherElementsInSameWindowThatMightBeRelevant: this.someOtherElementsInSameWindowThatMightBeRelevant?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
+      currentChromeTabMostRelevantElements: this.currentChromeTabMostRelevantElements?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
       isChrome: this.isChrome,
       note: this.note,
     };
@@ -743,30 +755,30 @@ export class FocusInformation {
 }
 
 /**
- * Information about a Chrome element
+ * Detailed information about an element within a Chrome tab
  */
 export class ChromeElementInfo {
   /** Smooth Operator ID */
-  smoothOpId: string;
+  smoothOpId: string | null; // Match C# non-optional string (can be null)
   /** HTML tag name */
-  tagName: string;
+  tagName: string | null; // Match C# non-optional string (can be null)
   /** CSS selector */
-  cssSelector: string;
+  cssSelector: string | null; // Match C# non-optional string (can be null)
   /** Inner text */
   innerText: string | null; // Match C# non-optional string (can be null)
   /** Whether the element is visible */
   isVisible: boolean | null; // Match C# bool?
   /** Relevance score */
-  score: number; // Match C# double
+  score: number | null; // Match C# float?
   /** ARIA role */
   role: string | null; // Match C# non-optional string (can be null)
   /** Element value */
   value: string | null; // Match C# non-optional string (can be null)
-  /** Element type */
+  /** Element type attribute */
   type: string | null; // Match C# non-optional string (can be null)
-  /** Element name */
+  /** Element name attribute */
   name: string | null; // Match C# non-optional string (can be null)
-  /** CSS class name */
+  /** Element class attribute */
   className: string | null; // Match C# non-optional string (can be null)
   /** Semantic meaning */
   semantic: string | null; // Match C# non-optional string (can be null)
@@ -775,17 +787,17 @@ export class ChromeElementInfo {
   /** Truncated HTML */
   truncatedHtml: string | null; // Match C# non-optional string (can be null)
   /** Bounding rectangle [x, y, width, height] */
-  boundingRect: number[] | null; // Match C# non-optional int[] (can be null)
+  boundingRect: number[] | null; // Match C# non-optional List<int> (can be null)
   /** Center point */
   centerPoint: Point | null; // Match C# non-optional Point (can be null)
 
   constructor(data: {
-    smoothOpId: string;
-    tagName: string;
-    cssSelector: string;
-    score: number;
+    smoothOpId?: string | null;
+    tagName?: string | null;
+    cssSelector?: string | null;
     innerText?: string | null;
     isVisible?: boolean | null;
+    score?: number | null;
     role?: string | null;
     value?: string | null;
     type?: string | null;
@@ -795,14 +807,14 @@ export class ChromeElementInfo {
     dataAttributes?: string | null;
     truncatedHtml?: string | null;
     boundingRect?: number[] | null;
-    centerPoint?: any | null; // Accept plain object
+    centerPoint?: Point | null;
   }) {
-    this.smoothOpId = data.smoothOpId;
-    this.tagName = data.tagName;
-    this.cssSelector = data.cssSelector;
+    this.smoothOpId = data.smoothOpId ?? null;
+    this.tagName = data.tagName ?? null;
+    this.cssSelector = data.cssSelector ?? null;
     this.innerText = data.innerText ?? null;
     this.isVisible = data.isVisible ?? null;
-    this.score = data.score;
+    this.score = data.score ?? null;
     this.role = data.role ?? null;
     this.value = data.value ?? null;
     this.type = data.type ?? null;
@@ -812,7 +824,7 @@ export class ChromeElementInfo {
     this.dataAttributes = data.dataAttributes ?? null;
     this.truncatedHtml = data.truncatedHtml ?? null;
     this.boundingRect = data.boundingRect ?? null;
-    // Reconstruct nested object
+    // Reconstruct centerPoint if present
     this.centerPoint = data.centerPoint ? new Point(data.centerPoint) : null;
   }
 
@@ -833,59 +845,59 @@ export class ChromeElementInfo {
       dataAttributes: this.dataAttributes,
       truncatedHtml: this.truncatedHtml,
       boundingRect: this.boundingRect,
-      // Ensure nested objects also use toJSON if available
+      // Serialize centerPoint if it exists
       centerPoint: this.centerPoint?.toJSON ? this.centerPoint.toJSON() : this.centerPoint,
     };
   }
 }
 
 /**
- * System overview response
+ * Response from the system overview endpoint
  */
 export class OverviewResponse {
-  /** Windows in the system */
-  windows: WindowInfoDTO[]; // Match C# non-optional List -> Made non-nullable
-  /** Chrome instances */
-  chromeInstances: ChromeOverview[]; // Match C# non-optional List -> Made non-nullable
-  /** Focus information */
+  /** List of open windows */
+  windows: WindowInfoDTO[] | null; // Match C# non-optional List (can be null)
+  /** Information about the focused element */
   focusInfo: FocusInformation | null; // Match C# non-optional FocusInformation (can be null)
-  /** Top pinned taskbar icons */
-  topPinnedTaskbarIcons: TaskbarIconDTO[]; // Match C# non-optional List -> Made non-nullable
-  /** Top desktop icons */
-  topDesktopIcons: DesktopIconDTO[]; // Match C# non-optional List -> Made non-nullable
-  /** Top installed programs */
-  topInstalledPrograms: InstalledProgramDTO[]; // Match C# non-optional List -> Made non-nullable
+  /** List of Chrome instances */
+  chromeInstances: ChromeOverview[] | null; // Match C# non-optional List (can be null)
+  /** List of taskbar icons */
+  taskbarIcons: TaskbarIconDTO[] | null; // Match C# non-optional List (can be null)
+  /** List of desktop icons */
+  desktopIcons: DesktopIconDTO[] | null; // Match C# non-optional List (can be null)
+  /** List of installed programs */
+  installedPrograms: InstalledProgramDTO[] | null; // Match C# non-optional List (can be null)
   /** Important note */
   importantNote: string | null; // Match C# non-optional string (can be null)
 
   constructor(data: {
-    windows?: any[] | null; // Accept plain objects, allow null/undefined
-    chromeInstances?: any[] | null; // Accept plain objects, allow null/undefined
-    focusInfo?: any | null; // Accept plain object
-    topPinnedTaskbarIcons?: any[] | null; // Accept plain objects, allow null/undefined
-    topDesktopIcons?: any[] | null; // Accept plain objects, allow null/undefined
-    topInstalledPrograms?: any[] | null; // Accept plain objects, allow null/undefined
+    windows?: WindowInfoDTO[] | null;
+    focusInfo?: FocusInformation | null;
+    chromeInstances?: ChromeOverview[] | null;
+    taskbarIcons?: TaskbarIconDTO[] | null;
+    desktopIcons?: DesktopIconDTO[] | null;
+    installedPrograms?: InstalledProgramDTO[] | null;
     importantNote?: string | null;
   }) {
-    // Reconstruct nested objects, default to empty arrays if null/undefined
-    this.windows = data.windows ? data.windows.map(wData => new WindowInfoDTO(wData)) : [];
-    this.chromeInstances = data.chromeInstances ? data.chromeInstances.map(cData => new ChromeOverview(cData)) : [];
+    // Reconstruct complex lists
+    this.windows = data.windows ? data.windows.map(wData => new WindowInfoDTO(wData)) : null;
     this.focusInfo = data.focusInfo ? new FocusInformation(data.focusInfo) : null;
-    this.topPinnedTaskbarIcons = data.topPinnedTaskbarIcons ? data.topPinnedTaskbarIcons.map(tData => new TaskbarIconDTO(tData)) : [];
-    this.topDesktopIcons = data.topDesktopIcons ? data.topDesktopIcons.map(dData => new DesktopIconDTO(dData)) : [];
-    this.topInstalledPrograms = data.topInstalledPrograms ? data.topInstalledPrograms.map(pData => new InstalledProgramDTO(pData)) : [];
+    this.chromeInstances = data.chromeInstances ? data.chromeInstances.map(cData => new ChromeOverview(cData)) : null;
+    this.taskbarIcons = data.taskbarIcons ? data.taskbarIcons.map(tData => new TaskbarIconDTO(tData)) : null;
+    this.desktopIcons = data.desktopIcons ? data.desktopIcons.map(dData => new DesktopIconDTO(dData)) : null;
+    this.installedPrograms = data.installedPrograms ? data.installedPrograms.map(pData => new InstalledProgramDTO(pData)) : null;
     this.importantNote = data.importantNote ?? null;
   }
 
   toJSON(): any {
     return {
-       // Ensure nested objects also use toJSON if available
-      windows: this.windows.map(w => w?.toJSON ? w.toJSON() : w),
-      chromeInstances: this.chromeInstances.map(c => c?.toJSON ? c.toJSON() : c),
+      // Serialize complex lists if they exist
+      windows: this.windows?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
       focusInfo: this.focusInfo?.toJSON ? this.focusInfo.toJSON() : this.focusInfo,
-      topPinnedTaskbarIcons: this.topPinnedTaskbarIcons.map(t => t?.toJSON ? t.toJSON() : t),
-      topDesktopIcons: this.topDesktopIcons.map(d => d?.toJSON ? d.toJSON() : d),
-      topInstalledPrograms: this.topInstalledPrograms.map(p => p?.toJSON ? p.toJSON() : p),
+      chromeInstances: this.chromeInstances?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
+      taskbarIcons: this.taskbarIcons?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
+      desktopIcons: this.desktopIcons?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
+      installedPrograms: this.installedPrograms?.map(el => el.toJSON ? el.toJSON() : el) ?? null,
       importantNote: this.importantNote,
     };
   }
