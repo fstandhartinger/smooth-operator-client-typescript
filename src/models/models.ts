@@ -215,38 +215,38 @@ export class ChromeTab {
  * Detailed information about a Chrome tab
  */
 export class ChromeTabDetails {
-  /** Tab title */
-  title: string;
-  /** Tab URL */
-  url: string;
-  /** Page content */
-  content: string;
-  /** List of elements on the page */
-  elements: Record<string, any>[];
-  /** Summary of the page content */
-  summary: string;
+  /** Current tab title */
+  currentTabTitle: string;
+  /** Current tab index */
+  currentTabIndex: number;
+  /** Most relevant elements in the current Chrome tab */
+  currentChromeTabMostRelevantElements: ChromeElementInfo[];
+  /** Other Chrome instances */
+  chromeInstances: ChromeOverview[];
+  /** Optional note */
+  note: string | null;
 
   constructor(data: {
-    title: string;
-    url: string;
-    content: string;
-    elements: Record<string, any>[];
-    summary: string;
+    currentTabTitle: string;
+    currentTabIndex: number;
+    currentChromeTabMostRelevantElements: ChromeElementInfo[];
+    chromeInstances: ChromeOverview[];
+    note?: string | null;
   }) {
-    this.title = data.title;
-    this.url = data.url;
-    this.content = data.content;
-    this.elements = data.elements;
-    this.summary = data.summary;
+    this.currentTabTitle = data.currentTabTitle;
+    this.currentTabIndex = data.currentTabIndex;
+    this.currentChromeTabMostRelevantElements = data.currentChromeTabMostRelevantElements;
+    this.chromeInstances = data.chromeInstances;
+    this.note = data.note ?? null;
   }
 
   toJSON(): any {
     return {
-      title: this.title,
-      url: this.url,
-      content: this.content,
-      elements: this.elements,
-      summary: this.summary,
+      currentTabTitle: this.currentTabTitle,
+      currentTabIndex: this.currentTabIndex,
+      currentChromeTabMostRelevantElements: this.currentChromeTabMostRelevantElements?.map(e => e.toJSON ? e.toJSON() : e),
+      chromeInstances: this.chromeInstances?.map(i => i.toJSON ? i.toJSON() : i),
+      note: this.note,
     };
   }
 }
@@ -304,21 +304,26 @@ export class CSharpCodeResponse extends ActionResponse {
  * Simple response with a message
  */
 export class SimpleResponse {
+  /** Whether the operation was successful */
+  success: boolean;
   /** Message describing the result */
   message: string | null; // Match C# non-optional string (can be null)
   /** Internal message (not usually exposed to users) */
   internalMessage: string | null; // Match C# non-optional string (can be null)
 
   constructor(data: {
+    success?: boolean;
     message?: string | null;
     internalMessage?: string | null;
   }) {
+    this.success = data.success ?? true;
     this.message = data.message ?? null;
     this.internalMessage = data.internalMessage ?? null;
   }
 
   toJSON(): any {
     return {
+      success: this.success,
       message: this.message,
       internalMessage: this.internalMessage,
     };
